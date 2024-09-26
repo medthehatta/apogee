@@ -1,0 +1,13 @@
+[project]
+name = "apogee"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "arcade>=2.3.15",
+    "formal-vector",
+]
+
+[tool.uv.sources]
+formal-vector = { path = "../../../../../../../home/med/deploy/formal-vector", editable = true }
