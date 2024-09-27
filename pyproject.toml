@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "arcade>=2.3.15",
+    "choice",
     "formal-vector",
 ]
 
 [tool.uv.sources]
 formal-vector = { path = "../../../../../../../home/med/deploy/formal-vector", editable = true }
+choice = { path = "../../../../../../../home/med/deploy/choice", editable = true }
