@@ -1,13 +1,36 @@
+from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import fields
+from dataclasses import MISSING
 from functools import reduce
 from itertools import cycle
 import random
 
+from choice import Choice
 from formal_vector import FormalVector
 
 
+#
+# Constants
+#
+
+
 MAX_ROUNDS = 100
+
+
+#
+# Choice helpers
+#
+
+
+def _weighted(*seq):
+    return Choice.flat(Choice.weighted(*x) for x in seq)
+
+
+#
+# Classes
+#
 
 
 class Stats(FormalVector):
@@ -128,6 +151,7 @@ class Module:
     power: int = 0
     speed: int = 1
     initiative: int = 0
+    power_cost: int = 0
 
     def stats(self):
         return Stats.from_triples(
@@ -138,43 +162,32 @@ class Module:
                 ("power", self.power, None),
                 ("speed", self.speed, None),
                 ("initiative", self.initiative, None),
+                ("power_cost", self.power_cost, None),
             ]
         )
 
-
-class Initiative:
-
-    def __init__(self, units):
-        self.units = units
-        self.initiative = sorted(self.units, key=lambda u: u.stats["initiative"])
-
-    def one_round(self):
-        return iter(self.initiative)
-
-    def is_everybody_dead(self):
-        return all(not u.is_alive() for u in self.initiative)
-
-    def alive(self):
-        for u in self.initiative:
-            if u.is_alive():
-                yield u
-
-    def cycle_alive(self):
-        while True:
-            if self.is_everybody_dead():
-                return
-            yield from self.alive()
-
-    def cycle(self):
-        return cycle(self.initiative)
+    def __repr__(self):
+        field_dict = asdict(self)
+        non_defaults = [
+            (f.name, field_dict[f.name]) for f in fields(self)
+            if f.default is not MISSING and f.default != field_dict[f.name]
+        ]
+        fs = ", ".join(f"{f}={v}" for (f, v) in non_defaults)
+        return f"{self.__class__.__name__}({fs})"
 
 
 class Unit:
 
-    def __init__(self, name, modules):
+    def __init__(self, name, num_slots, modules=None):
         self.name = name
+        self.num_slots = num_slots
         self.absorbed_hits = 0
-        self._modules = modules
+        self._modules = modules or []
+        if len(self._modules) > num_slots:
+            raise ValueError(
+                f"Number of modules ({len(self._modules)}) exceeds number of "
+                f"slots ({self.num_slots})"
+            )
 
     @property
     def modules(self):
@@ -245,25 +258,106 @@ class Unit:
         self.absorbed_hits = 0
         return self
 
+    def slot_module(self, slot, module):
+        if slot >= self.num_slots:
+            raise ValueError(f"Not a valid slot number: {slot}")
+
+        if (
+            (
+                self.stats["power"] - self.stats["power_cost"]
+                - self.modules[slot].power + self.modules[slot].power_cost
+                + module.power - module.power_cost
+            )
+            < 0
+        ):
+            raise ValueError(f"Module exceeds power budget: {module}")
+
+        self._modules[slot] = module
+
     def __repr__(self):
         return f"<{self.name}>"
 
 
-def perform_combat(rng, ship, opponent):
-    initiative = Initiative([ship, opponent])
+class Initiative:
 
+    def __init__(self, units):
+        self.units = units
+        self.initiative = sorted(
+            self.units,
+            key=lambda u: u.stats["initiative"],
+            reverse=True,
+        )
+
+    def one_round(self):
+        return iter(self.initiative)
+
+    def is_everybody_dead(self):
+        return all(not u.is_alive() for u in self.initiative)
+
+    def alive(self):
+        for u in self.initiative:
+            if u.is_alive():
+                yield u
+
+    def cycle_alive(self):
+        while True:
+            if self.is_everybody_dead():
+                return
+            yield from self.alive()
+
+    def cycle(self):
+        return cycle(self.initiative)
+
+
+#
+# Main functions
+#
+
+
+def _combat_turn_text(
+    attacker,
+    defender,
+    volley,
+    mitigated,
+    damage,
+    self_damage=None,
+):
+    if volley.all_hits() == 0:
+        volley_text = f"{attacker} attacks {defender} with {volley} and misses!"
+    else:
+        volley_text = (
+            f"{attacker} attacks {defender} with {volley} mitigated to "
+            f"{mitigated.all_hits()} inflicting {damage}"
+        )
+
+    if self_damage:
+        self_damage_text = f" (they also inflict {self_damage} on themselves)"
+    else:
+        self_damage_text = ""
+
+    if defender.is_dead():
+        death_text = f"\n{defender} has been defeated!"
+    else:
+        death_text = ""
+
+    if attacker.is_dead():
+        attacker_death_text = f"\nBut {attacker} has destroyed themselves!"
+    else:
+        attacker_death_text = ""
+
+    return f"{volley_text}{self_damage_text}{death_text}{attacker_death_text}"
+
+
+def perform_combat(rng, initiative):
     for attacker in initiative.one_round():
         if attacker.is_dead():
-            print(f"Attacker {attacker} is dead!")
+            print(f"Would-be attacker {attacker} is dead!")
             continue
         defender = attacker.select_missile_target(initiative.alive())
         volley = attacker.missile_volley(rng)
         mitigated = defender.mitigate(volley)
         damage = defender.absorb(mitigated)
-        print(
-            f"{attacker} attacks {defender} with {volley} mitigated to "
-            f"{mitigated.all_hits()} inflicting {damage}"
-        )
+        print(_combat_turn_text(attacker, defender, volley, mitigated, damage))
 
     for (i, attacker) in zip(range(MAX_ROUNDS), initiative.cycle_alive()):
         defender = attacker.select_cannon_target(initiative.alive())
@@ -276,12 +370,116 @@ def perform_combat(rng, ship, opponent):
         mitigated = defender.mitigate(volley)
         damage = defender.absorb(mitigated)
         print(
-            f"{attacker} attacks {defender} with {volley} mitigated to "
-            f"{mitigated.all_hits()} inflicting {damage} (and receiving {self_damage})"
+            _combat_turn_text(
+                attacker,
+                defender,
+                volley,
+                mitigated,
+                damage,
+                self_damage,
+            )
         )
 
     if initiative.is_everybody_dead():
         print("No combatants remain!")
+
+
+def _dice():
+    num_dice = _weighted((15, 1), (8, 2), (2, 3), (1, 4))
+    num_pips = _weighted((8, 1), (3, 2), (3, 3), (1, 4))
+    kind = _weighted((10, NormalDie), (2, RiftDie))
+
+    @Choice.delayed
+    def _die_list(k, d, p):
+        return [k(p) if k is not RiftDie else k()]*d
+
+    return _die_list(kind, num_dice, num_pips)
+
+
+def random_module(rng=None):
+    rng = rng or random.Random()
+
+    def _weighted(*seq):
+        return Choice.flat(Choice.weighted(*x) for x in seq)
+
+    num_effects = _weighted((10, 1), (3, 2), (1, 3)).evaluate(rng)
+
+    props = [
+        "missile_dice",
+        "missile_dice",
+        "cannon_dice",
+        "cannon_dice",
+        "cannon_dice",
+        "hull_tank",
+        "hull_tank",
+        "mitigation",
+        "mitigation",
+        "targeting",
+        "power",
+        "power",
+        "power",
+        "power",
+        "speed",
+        "initiative",
+        "initiative",
+    ]
+    rng.shuffle(props)
+    taken_props = props[:num_effects]
+    prop_values = {
+        "missile_dice": _dice(),
+        "cannon_dice": _dice(),
+        "targeting": _weighted((10, 1), (5, 2), (1, 3)),
+        "mitigation": _weighted((10, 1), (5, 2), (1, 3)),
+        "hull_tank": _weighted((10, 1), (5, 2), (1, 3)),
+        "power": _weighted((3, 1), (10, 2), (5, 3), (1, 4)),
+        "speed": _weighted((10, 1), (5, 2), (1, 3)),
+        "initiative": _weighted((10, 1), (5, 2), (1, 3)),
+    }
+    params = {p: prop_values[p].evaluate(rng) for p in taken_props}
+
+    def _die_value(dice):
+        match dice:
+            case [RiftDie(), *rest]:
+                return 5
+            case [NormalDie(x), *rest]:
+                return x
+            case _:
+                return 0
+
+    value_estimate = (
+        sum(v for (k, v) in params.items() if isinstance(v, int))
+        + _die_value(params.get("missile_dice"))
+        + _die_value(params.get("cannon_dice"))
+    )
+
+    params["power_cost"] = int(value_estimate / 2)
+    return Module(**params)
+
+
+def random_unit(name, rng=None):
+    rng = rng or random.Random()
+
+    num_slots = _weighted((10, 5), (5, 8), (2, 10)).evaluate(rng)
+    starting_modules = [
+        Module(power=3),
+        Module(cannon_dice=[NormalDie(2)]*2),
+        Module(cannon_dice=[NormalDie(1)]*1),
+        Module(cannon_dice=[NormalDie(1)]*1),
+    ]
+    leftovers = num_slots - len(starting_modules)
+    unit = Unit(
+        name,
+        num_slots=num_slots,
+        modules=starting_modules + [Module()]*leftovers,
+    )
+    for _ in range(300):
+        try:
+            slot = random.randint(0, num_slots-1)
+            unit.slot_module(slot, random_module(rng))
+        except ValueError:
+            pass
+
+    return unit
 
 
 def main():
@@ -289,7 +487,8 @@ def main():
     rng = random.Random(seed)
     ship = Unit(
         "ship",
-        [
+        num_slots=5,
+        modules=[
             Module(missile_dice=[NormalDie(1)]),
             Module(cannon_dice=[NormalDie(3), NormalDie(3)]),
             Module(hull_tank=5),
@@ -297,15 +496,20 @@ def main():
             Module(targeting=1),
         ],
     )
-    opponent = Unit(
-        "opponent",
-        [
-            Module(cannon_dice=[NormalDie(1), RiftDie()]),
-            Module(hull_tank=20),
-            Module(targeting=1),
-        ],
-    )
-    perform_combat(rng, ship, opponent)
+
+    opponent_names = ["adam", "betty", "charlie", "diane"]
+    opponents = [random_unit(n, rng) for n in opponent_names]
+
+    initiative = Initiative([ship] + opponents)
+    for entry in initiative.one_round():
+        print(entry)
+        print(entry.stats)
+        for m in entry.modules:
+            print(m)
+        print("")
+    print("\n")
+
+    perform_combat(rng, initiative)
 
 
 if __name__ == "__main__":
