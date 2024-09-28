@@ -11,6 +11,9 @@ dependencies = [
     "svgcomposer",
 ]
 
+[tool.setuptools]
+packages = []
+
 [tool.uv.sources]
 formal-vector = { git = "https://github.com/medthehatta/formal-vector" }
 choice = { git = "https://github.com/medthehatta/choice" }
