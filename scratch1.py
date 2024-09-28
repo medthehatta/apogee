@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from itertools import cycle
 import random
 
 import arcade
@@ -73,12 +74,53 @@ def draw_rect(rect, color=arcade.color.BLACK):
     )
 
 
+class RectSeriesArtist:
+
+    def __init__(self, color_sequence):
+        self.colors = cycle(color_sequence)
+
+    def draw(self, rect):
+        draw_rect(rect, next(self.colors))
+
+    def draw_all(self, rects):
+        color = next(self.colors)
+        for rect in rects:
+            draw_rect(rect, color)
+
+
 def render_rect_sample():
-    outer_rect = RectLRBT.blwh((0, 0), 500, 500)
-    with arcade_window(500, 500):
-        draw_rect(outer_rect)
-        inset_rect = outer_rect.scale_centered_pct(90)
-        draw_rect(inset_rect)
+    artist = RectSeriesArtist(
+        [
+            arcade.color.BLACK,
+            arcade.color.BLUE,
+            arcade.color.RED,
+            arcade.color.GREEN,
+        ]
+    )
+
+    outer_rect = RectLRBT.blwh((0, 0), 800, 500)
+    with arcade_window(outer_rect.width + 10, outer_rect.height + 10):
+        artist.draw(inset_rect := outer_rect.scale_centered_pct(90))
+        artist.draw(bottom_right_rect := inset_rect.subdivisions(2, 2).cell(row=0, column=1))
+        artist.draw(bottom_right_inset := bottom_right_rect.scale_to_topleft_pct(90))
+        artist.draw(
+            lil_square_sub :=
+            bottom_right_inset
+            .subdivisions(rows=2, columns=3).cell(row=1, column=0)
+        )
+        artist.draw(
+            lil_square :=
+            lil_square_sub
+            .at_center_with_width_height(
+                lil_square_sub.height,
+                lil_square_sub.height,
+            )
+            .scale_centered_pct(90)
+        )
+        artist.draw_all(
+            rect.scale_centered_pct(90) for rect in
+            inset_rect.subdivisions(rows=2, columns=5).row(1)
+        )
 
 
 # seed = 20
