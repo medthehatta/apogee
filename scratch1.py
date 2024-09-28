@@ -1,6 +1,8 @@
 from contextlib import contextmanager
 from itertools import cycle
+from itertools import product
 import random
+import string
 
 import arcade
 
@@ -66,8 +68,12 @@ def render_module_collage(modules, num_columns=5, padding=2, margin=5):
     print("done")
 
 
-def draw_rect(rect, color=arcade.color.BLACK):
-    print(f"Drawing {rect}")
+def draw_rect(rect, color=arcade.color.BLACK, text=None):
+    if text:
+        print(f"Drawing {rect} ({text})")
+    else:
+        print(f"Drawing {rect}")
+
     arcade.draw_rectangle_outline(
         rect.center.x,
         rect.center.y,
@@ -77,30 +83,49 @@ def draw_rect(rect, color=arcade.color.BLACK):
         border_width=2,
     )
 
+    if text:
+        text_rect = rect.scale_centered_pct(40)
+        arcade.draw_text(
+            text,
+            start_x=text_rect.center.x,
+            start_y=text_rect.center.y,
+            anchor_x="center",
+            anchor_y="center",
+            font_size=text_rect.width,
+            color=color,
+        )
+
 
 class RectSeriesArtist:
 
-    def __init__(self, color_sequence):
+    def __init__(self):
+        color_sequence = (
+            getattr(arcade.color, x)
+            for x in dir(arcade.color)
+            if isinstance(getattr(arcade.color, x), tuple)
+        )
         self.colors = cycle(color_sequence)
+        self.names = iter(
+            list(string.ascii_uppercase)
+            + [
+                "".join(x)
+                for x
+                in product(string.ascii_uppercase, string.ascii_uppercase)
+            ]
+        )
 
     def draw(self, rect):
-        draw_rect(rect, next(self.colors))
+        draw_rect(rect, next(self.colors), text=next(self.names))
 
     def draw_all(self, rects):
         color = next(self.colors)
+        text = next(self.names)
         for rect in rects:
-            draw_rect(rect, color)
+            draw_rect(rect, color, text=text)
 
 
 def render_rect_sample():
-    artist = RectSeriesArtist(
-        [
-            arcade.color.BLACK,
-            arcade.color.BLUE,
-            arcade.color.RED,
-            arcade.color.GREEN,
-        ]
-    )
+    artist = RectSeriesArtist()
 
     outer_rect = RectLRBT.blwh((0, 0), 1024, 768)
     with arcade_window(outer_rect.width + 10, outer_rect.height + 10):
@@ -127,7 +152,37 @@ def render_rect_sample():
         )
 
 
-seed = 20
-rng = random.Random(seed)
-render_module_collage(random_modules(20, rng))
+def render_rect_tree_sample():
+    artist = RectSeriesArtist()
+
+    outer_rect = RectLRBT.blwh((0, 0), 1024, 768)
+    with arcade_window(outer_rect.width + 10, outer_rect.height + 10):
+        sections = (
+            outer_rect
+            .scale_centered_pct(90)
+            .subdivisions(rows=3, columns=4)
+            .as_iter_rows_columns()
+        )
+        for (i, section) in enumerate(sections):
+            draw_rect(section, color=arcade.color.ALICE_BLUE, text=f"${i}")
+            rectlist = []
+            for _ in range(5):
+                x = random.randint(
+                    int(section.topleft.x),
+                    int(section.topright.x),
+                )
+                y = random.randint(
+                    int(section.bottomleft.y),
+                    int(section.topleft.y),
+                )
+                rect = RectLRBT.cwh((x, y), 25, 25)
+                rectlist.append(rect)
+                artist.draw(rect)
+            draw_rect(RectLRBT.aabb(rectlist), text=f"{i}")
+
+
+# seed = 20
+# rng = random.Random(seed)
+# render_module_collage(random_modules(20, rng))
 # render_rect_sample()
+render_rect_tree_sample()

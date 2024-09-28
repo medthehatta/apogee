@@ -81,6 +81,18 @@ class RectSubdivisions:
             self.cell(r, column) for r in range(self.rows)
         ]
 
+    def as_iter_rows_columns(self):
+        return chain.from_iterable(self.column(c) for c in range(self.columns))
+
+    def as_iter_columns_rows(self):
+        return chain.from_iterable(self.row(r) for r in range(self.rows))
+
+    def as_nested_rows_columns(self):
+        return [self.column(c) for c in range(self.columns)]
+
+    def as_nested_columns_rows(self):
+        return [self.row(r) for r in range(self.rows)]
+
 
 class RectTiled:
 
@@ -226,8 +238,8 @@ class Rect:
         _topleft = cls.ensure_point(topleft)
         _bottomright = cls.ensure_point(bottomright)
         diag = _bottomright - _topleft
-        width = diag.x
-        height = diag.y
+        width = abs(diag.x)
+        height = abs(diag.y)
         return cls.from_topleft_width_height(
             _topleft,
             width,
