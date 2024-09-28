@@ -112,26 +112,49 @@ class RectTiled:
             self.rect.width,
         )
 
+    def check_finite(self):
+        if self.rows is None or self.columns is None:
+            raise ValueError(
+                f"Cannot iterate through a tiling if the number of rows or "
+                f"columns has been left indeterminate.  Instantiate with "
+                f"`rows` and `columns` to enable iteration.  This instance "
+                f"has (rows={self.rows}, columns={self.columns})"
+            )
+
     def row(self, row):
+        if self.columns is None:
+            raise ValueError(
+                "Cannot iterate through a row if the tiling doesn't specify a "
+                "number of columns"
+            )
         return [
             self.cell(row, c) for c in range(self.columns)
         ]
 
     def column(self, column):
+        if self.rows is None:
+            raise ValueError(
+                "Cannot iterate through a row if the tiling doesn't specify a "
+                "number of rows"
+            )
         return [
             self.cell(r, column) for r in range(self.rows)
         ]
 
     def as_iter_rows_columns(self):
+        self.check_finite()
         return chain.from_iterable(self.column(c) for c in range(self.columns))
 
     def as_iter_columns_rows(self):
+        self.check_finite()
         return chain.from_iterable(self.row(r) for r in range(self.rows))
 
     def as_nested_rows_columns(self):
+        self.check_finite()
         return [self.column(c) for c in range(self.columns)]
 
     def as_nested_columns_rows(self):
+        self.check_finite()
         return [self.row(r) for r in range(self.rows)]
 
 
