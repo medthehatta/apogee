@@ -1,2 +1,5 @@
 .python-version
 *.sw[lmnop]
+svgcomposer.svg/
+__pycache__/
+*.egg-info
