@@ -251,33 +251,28 @@ class Rect:
             self.height,
         )
 
-    def topleft_quadrant(self):
-        return type(self).tlwh(
-            self.topleft,
-            self.w//2,
-            self.h//2,
-        )
+    def subdivisions(self, rows, columns):
+        cell_width = self.width / columns
+        cell_height = self.height / rows
 
-    def topright_quadrant(self):
-        return type(self).trwh(
-            self.topright,
-            self.w//2,
-            self.h//2,
-        )
+        def _(row, column):
+            if row >= rows or column >= columns:
+                raise ValueError(
+                    f"Subdivision ({row=}, {column=}) is out of bounds "
+                    f"(0, 0) to (row={rows-1}, column={columns-1})"
+                )
 
-    def bottomleft_quadrant(self):
-        return type(self).blwh(
-            self.bottomleft,
-            self.w//2,
-            self.h//2,
-        )
+            return type(self).tlwh(
+                (
+                    self.topleft
+                    + column * cell_width * self.e_right
+                    + row * cell_height * self.e_up
+                ),
+                cell_width,
+                cell_height,
+            )
 
-    def bottomright_quadrant(self):
-        return type(self).brwh(
-            self.bottomright,
-            self.w//2,
-            self.h//2,
-        )
+        return _
 
     def displace(self, delta):
         d = self.ensure_point(delta)
