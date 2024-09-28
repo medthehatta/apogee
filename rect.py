@@ -50,7 +50,7 @@ class Rect:
 
     @classmethod
     def from_topleft_width_height(cls, topleft, width, height):
-        return cls(cls.ensure_point(topleft), width, height)
+        return cls(topleft, width, height)
 
     @classmethod
     def tlwh(cls, topleft, width, height):
@@ -71,7 +71,7 @@ class Rect:
     @classmethod
     def from_bottomleft_width_height(cls, bottomleft, width, height):
         return cls.from_topleft_width_height(
-            cls.ensure_point(bottomleft) - height * cls.e_up,
+            cls.ensure_point(bottomleft) + height * cls.e_up,
             width,
             height,
         )
@@ -83,7 +83,7 @@ class Rect:
     @classmethod
     def from_bottomright_width_height(cls, bottomright, width, height):
         return cls.from_topleft_width_height(
-            cls.ensure_point(bottomright) - height * cls.e_up - width * cls.e_right,
+            cls.ensure_point(bottomright) + height * cls.e_up - width * cls.e_right,
             width,
             height,
         )
@@ -94,7 +94,7 @@ class Rect:
 
     @classmethod
     def from_center_width_height(cls, center, width, height):
-        _topleft = cls.ensure_point(center) - width/2 * cls.e_right - height/2 * cls.e_up
+        _topleft = cls.ensure_point(center) - width/2 * cls.e_right + height/2 * cls.e_up
         return cls.from_topleft_width_height(
             _topleft.integral(),
             width,
@@ -155,7 +155,7 @@ class Rect:
 
     @property
     def bottomleft(self):
-        return self.topleft + self.height * self.e_up
+        return self.topleft - self.height * self.e_up
 
     @property
     def bl(self):
@@ -163,7 +163,7 @@ class Rect:
 
     @property
     def bottomright(self):
-        return self.topleft + self.height * self.e_up + self.width * self.e_right
+        return self.bottomleft + self.width * self.e_right
 
     @property
     def br(self):
@@ -300,9 +300,37 @@ class Rect:
             self.h,
         )
 
+    def scale_width_to_left_pct(self, pct):
+        return type(self).tlwh(
+            self.topleft,
+            self.w * pct//100,
+            self.h,
+        )
+
+    def scale_width_to_right_pct(self, pct):
+        return type(self).trwh(
+            self.topright,
+            self.w * pct//100,
+            self.h,
+        )
+
     def scale_height_centered_pct(self, pct):
         return type(self).cwh(
             self.c,
+            self.w,
+            self.h * pct//100,
+        )
+
+    def scale_height_to_top_pct(self, pct):
+        return type(self).tlwh(
+            self.topleft,
+            self.w,
+            self.h * pct//100,
+        )
+
+    def scale_height_to_bottom_pct(self, pct):
+        return type(self).blwh(
+            self.bottomleft,
             self.w,
             self.h * pct//100,
         )
@@ -314,14 +342,90 @@ class Rect:
             self.h * pct//100,
         )
 
+    def scale_to_topleft_pct(self, pct):
+        return type(self).from_topleft_width_height(
+            self.topleft,
+            self.w * pct//100,
+            self.h * pct//100,
+        )
+
+    def scale_to_topright_pct(self, pct):
+        return type(self).from_topright_width_height(
+            self.topright,
+            self.w * pct//100,
+            self.h * pct//100,
+        )
+
+    def scale_to_bottomleft_pct(self, pct):
+        return type(self).from_bottomleft_width_height(
+            self.bottomleft,
+            self.w * pct//100,
+            self.h * pct//100,
+        )
+
+    def scale_to_bottomright_pct(self, pct):
+        return type(self).from_bottomright_width_height(
+            self.bottomright,
+            self.w * pct//100,
+            self.h * pct//100,
+        )
+
+    def at_center_with_width_height(self, width, height):
+        return type(self).from_center_width_height(
+            self.center,
+            width,
+            height,
+        )
+
+    def at_topleft_with_width_height(self, width, height):
+        return type(self).from_topleft_width_height(
+            self.topleft,
+            width,
+            height,
+        )
+
+    def at_topright_with_width_height(self, width, height):
+        return type(self).from_topright_width_height(
+            self.topright,
+            width,
+            height,
+        )
+
+    def at_bottomleft_with_width_height(self, width, height):
+        return type(self).from_bottomleft_width_height(
+            self.bottomleft,
+            width,
+            height,
+        )
+
+    def at_bottomright_with_width_height(self, width, height):
+        return type(self).from_bottomright_width_height(
+            self.bottomright,
+            width,
+            height,
+        )
+
 
 class RectLRTB(Rect):
 
     e_right = Point.named("x")
     e_up = -Point.named("y")
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f".tlwh({self.topleft}, {self.w}, {self.h})"
+        )
+
 
 class RectLRBT(Rect):
 
     e_right = Point.named("x")
     e_up = Point.named("y")
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f".blwh({self.bottomleft}, {self.w}, {self.h})"
+        )
+
