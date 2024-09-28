@@ -10,6 +10,7 @@ from unit import RiftDie
 from util import short_id
 from rect import Point
 from rect import RectLRBT
+from rect_tree import RectTree
 from sample import random_unit
 from sample import random_module
 from svggen import svg_for_module
