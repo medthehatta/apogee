@@ -73,7 +73,7 @@ def save_module_collage(modules, series=None):
     series = series or short_id()
     pils = [module_to_pil(mod) for mod in modules]
 
-    for img in pils:
+    for (i, img) in enumerate(pils):
         img.save(os.path.join(SCRATCH_PATH, f"mod-{series}-{i}.png"))
 
     return (pils, series)
