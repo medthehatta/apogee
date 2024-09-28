@@ -42,6 +42,44 @@ def _ensure_point(x):
         return x
 
 
+class RectSubdivisions:
+
+    def __init__(self, rect, rows, columns):
+        self.rect = rect
+        self.rows = rows
+        self.columns = columns
+
+        self.cell_width = self.rect.width / columns
+        self.cell_height = self.rect.height / rows
+
+    def cell(self, row, column):
+        if row >= self.rows or column >= self.columns:
+            raise ValueError(
+                f"Subdivision ({row=}, {column=}) is out of bounds "
+                f"(0, 0) to (row={self.rows-1}, column={self.columns-1})"
+            )
+
+        return type(self.rect).blwh(
+            (
+                self.rect.bottomleft
+                + column * self.cell_width * self.rect.e_right
+                + row * self.cell_height * self.rect.e_up
+            ),
+            self.cell_width,
+            self.cell_height,
+        )
+
+    def row(self, row):
+        return [
+            self.cell(row, c) for c in range(self.columns)
+        ]
+
+    def column(self, column):
+        return [
+            self.cell(r, column) for r in range(self.rows)
+        ]
+
+
 class Rect:
 
     @classmethod
@@ -252,27 +290,7 @@ class Rect:
         )
 
     def subdivisions(self, rows, columns):
-        cell_width = self.width / columns
-        cell_height = self.height / rows
-
-        def _(row, column):
-            if row >= rows or column >= columns:
-                raise ValueError(
-                    f"Subdivision ({row=}, {column=}) is out of bounds "
-                    f"(0, 0) to (row={rows-1}, column={columns-1})"
-                )
-
-            return type(self).tlwh(
-                (
-                    self.topleft
-                    + column * cell_width * self.e_right
-                    + row * cell_height * self.e_up
-                ),
-                cell_width,
-                cell_height,
-            )
-
-        return _
+        return RectSubdivisions(self, rows, columns)
 
     def displace(self, delta):
         d = self.ensure_point(delta)
