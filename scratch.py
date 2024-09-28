@@ -1,3 +1,4 @@
+import os
 import random
 
 from combat import perform_combat
@@ -5,16 +6,29 @@ from initiative import Initiative
 from unit import Unit
 from unit import Module
 from unit import NormalDie
-# from unit import RiftDie
+from unit import RiftDie
+from util import short_id
 from sample import random_unit
+from sample import random_module
+from svggen import svg_for_module
+from svggen import svg_string_to_pil
 
 
 #
-# Main functions
+# Scratch repo
 #
 
 
-def main():
+SCRATCH_PATH = "scratch"
+os.makedirs(SCRATCH_PATH, exist_ok=True)
+
+
+#
+# Functions
+#
+
+
+def setup_combat():
     seed = random.random()
     rng = random.Random(seed)
     ship = Unit(
@@ -44,5 +58,17 @@ def main():
     return (rng, initiative)
 
 
-if __name__ == "__main__":
-    (rng, initiative) = main()
+def random_module_collage(num_modules, rng=None):
+    rng = rng or random.Random()
+
+    series = short_id()
+    modules = []
+
+    for i in range(num_modules):
+        mod = random_module(rng)
+        modules.append(mod)
+        svg = svg_for_module(mod)
+        img = svg_string_to_pil(svg)
+        img.save(os.path.join(SCRATCH_PATH, f"mod-{series}-{i}.png"))
+
+    return (modules, series)
