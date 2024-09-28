@@ -1,3 +1,5 @@
+from itertools import chain
+
 from formal_vector import FormalVector
 
 
@@ -78,6 +80,59 @@ class RectSubdivisions:
         return [
             self.cell(r, column) for r in range(self.rows)
         ]
+
+
+class RectTiled:
+
+    def __init__(self, rect, rows=None, columns=None, xpad=0, ypad=0):
+        self.rect = rect
+        self.rows = rows
+        self.columns = columns
+        self.xpad = xpad
+        self.ypad = ypad
+
+    def cell(self, row, column):
+        if (
+            (self.rows is not None and row >= self.rows) or
+            (self.columns is not None and column >= self.columns)
+        ):
+            raise ValueError(
+                f"Subdivision ({row=}, {column=}) is out of bounds "
+                f"(0, 0) to (row={self.rows}, column={self.columns}) "
+                f"(not inclusive of the endpoint)"
+            )
+
+        return type(self.rect).blwh(
+            (
+                self.rect.bottomleft
+                + column * (self.rect.width + self.xpad) * self.rect.e_right
+                + row * (self.rect.height + self.ypad) * self.rect.e_up
+            ),
+            self.rect.width,
+            self.rect.width,
+        )
+
+    def row(self, row):
+        return [
+            self.cell(row, c) for c in range(self.columns)
+        ]
+
+    def column(self, column):
+        return [
+            self.cell(r, column) for r in range(self.rows)
+        ]
+
+    def as_iter_rows_columns(self):
+        return chain.from_iterable(self.column(c) for c in range(self.columns))
+
+    def as_iter_columns_rows(self):
+        return chain.from_iterable(self.row(r) for r in range(self.rows))
+
+    def as_nested_rows_columns(self):
+        return [self.column(c) for c in range(self.columns)]
+
+    def as_nested_columns_rows(self):
+        return [self.row(r) for r in range(self.rows)]
 
 
 class Rect:
@@ -292,23 +347,21 @@ class Rect:
     def subdivisions(self, rows, columns):
         return RectSubdivisions(self, rows, columns)
 
+    def tiled(self, rows=None, columns=None, xpad=0, ypad=0):
+        return RectTiled(
+            self,
+            rows=rows,
+            columns=columns,
+            xpad=xpad,
+            ypad=ypad,
+        )
+
     def displace(self, delta):
         d = self.ensure_point(delta)
         return type(self).tlwh(
             self.tl + d,
             self.w,
             self.h,
-        )
-
-    def in_grid(self, row, col, xpad=0, ypad=0):
-        return type(self).tlwh(
-            (
-                self.topleft
-                + col * (self.width + xpad) * self.e_right
-                + row * (self.height + ypad) * self.e_up
-            ),
-            self.width,
-            self.height,
         )
 
     def scale_width_centered_pct(self, pct):
