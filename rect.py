@@ -248,6 +248,10 @@ class Rect:
     def lrtb(cls, left, right, top, bottom):
         return cls.from_left_right_top_bottom(left, right, top, bottom)
 
+    @classmethod
+    def aabb(cls, rects):
+        raise NotImplementedError()
+
     def __init__(self, topleft, width, height):
         self._topleft = self.ensure_point(topleft)
         self._width = width
@@ -499,6 +503,9 @@ class Rect:
             height,
         )
 
+    def contains_point(self, pt):
+        raise NotImplementedError()
+
 
 class RectLRTB(Rect):
 
@@ -510,6 +517,21 @@ class RectLRTB(Rect):
             f"{self.__class__.__name__}"
             f".tlwh({self.topleft}, {self.w}, {self.h})"
         )
+
+    def contains_point(self, pt):
+        pt = self.ensure_point(pt)
+        return (
+            self.topleft.x < pt.x < self.topright.x and
+            self.topleft.y < pt.y < self.bottomleft.y
+        )
+
+    @classmethod
+    def aabb(cls, rects):
+        xmin = min(r.topleft.x for r in rects)
+        xmax = max(r.topright.x for r in rects)
+        ymin = min(r.topleft.y for r in rects)
+        ymax = max(r.bottomleft.y for r in rects)
+        return cls.lrtb(xmin, xmax, ymin, ymax)
 
 
 class RectLRBT(Rect):
@@ -523,3 +545,17 @@ class RectLRBT(Rect):
             f".blwh({self.bottomleft}, {self.w}, {self.h})"
         )
 
+    def contains_point(self, pt):
+        pt = self.ensure_point(pt)
+        return (
+            self.topleft.x < pt.x < self.topright.x and
+            self.bottomleft.y < pt.y < self.topleft.y
+        )
+
+    @classmethod
+    def aabb(cls, rects):
+        xmin = min(r.topleft.x for r in rects)
+        xmax = max(r.topright.x for r in rects)
+        ymin = min(r.bottomleft.y for r in rects)
+        ymax = max(r.topleft.y for r in rects)
+        return cls.lrtb(xmin, xmax, ymax, ymin)
