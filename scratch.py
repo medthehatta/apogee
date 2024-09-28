@@ -77,3 +77,7 @@ def save_module_collage(modules, series=None):
         img.save(os.path.join(SCRATCH_PATH, f"mod-{series}-{i}.png"))
 
     return (pils, series)
+
+
+if __name__ == "__main__":
+    rect = RectLRBT.tlwh((5, 5), 10, 10)
