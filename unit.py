@@ -18,14 +18,14 @@ class Stats(FormalVector):
     _ZERO = "Stats.zero()"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Die:
 
     def roll(self, rng):
         raise NotImplementedError()
 
 
-@dataclass
+@dataclass(frozen=True)
 class NormalDie(Die):
 
     hits: int
@@ -36,8 +36,11 @@ class NormalDie(Die):
             accuracy = None
         return {"accuracy": accuracy, "hits": self.hits}
 
+    def __repr__(self):
+        return f"Die({self.hits})"
 
-@dataclass
+
+@dataclass(frozen=True)
 class RiftDie(Die):
 
     def roll(self, rng):
@@ -46,12 +49,15 @@ class RiftDie(Die):
         )
         return {"accuracy": None, "hits": hits, "self_hits": self_hits}
 
+    def __repr__(self):
+        return "Die(R)"
 
-@dataclass
+
+@dataclass(frozen=True)
 class Module:
 
-    missile_dice: list[Die] = field(default_factory=list)
-    cannon_dice: list[Die] = field(default_factory=list)
+    missile_dice: tuple[Die] = field(default_factory=tuple)
+    cannon_dice: tuple[Die] = field(default_factory=tuple)
     targeting: int = 0
     mitigation: int = 0
     hull_tank: int = 0
@@ -79,6 +85,15 @@ class Module:
             (f.name, field_dict[f.name]) for f in fields(self)
             if f.default is not MISSING and f.default != field_dict[f.name]
         ]
+        if self.missile_dice:
+            dice = self.missile_dice
+            f_dice = f"{len(dice)}*{dice[0]}" if len(dice) > 1 else f"{dice[0]}"
+            non_defaults.append(("missile_dice", f_dice))
+        if self.cannon_dice:
+            dice = self.cannon_dice
+            f_dice = f"{len(dice)}*{dice[0]}" if len(dice) > 1 else f"{dice[0]}"
+            non_defaults.append(("cannon_dice", f_dice))
+
         fs = ", ".join(f"{f}={v}" for (f, v) in non_defaults)
         return f"{self.__class__.__name__}({fs})"
 
