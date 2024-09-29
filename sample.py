@@ -7,6 +7,8 @@ from unit import Module
 from unit import NormalDie
 from unit import RiftDie
 
+from rect import RectLRBT
+
 
 #
 # Choice helpers
@@ -118,3 +120,15 @@ def random_unit(name, rng=None):
             pass
 
     return unit
+
+
+def random_rect_within(rect, width, height, rng=None):
+    x = random.randint(
+        int(rect.topleft.x),
+        int(rect.topright.x),
+    )
+    y = random.randint(
+        int(rect.bottomleft.y),
+        int(rect.topleft.y),
+    )
+    return RectLRBT.cwh((x, y), width, height)

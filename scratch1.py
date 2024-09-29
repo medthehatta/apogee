@@ -7,25 +7,11 @@ import string
 import arcade
 
 from rect import RectLRBT
+from rect_tree import RectTree
+from rect_tree import build_rect_tree
 from scratch import module_to_pil
 from scratch import random_modules
-
-
-@contextmanager
-def arcade_window(
-    width,
-    height,
-    name="Arcade",
-    bgcolor=arcade.color.WHITE,
-):
-    arcade.open_window(width, height, name)
-    arcade.set_background_color(bgcolor)
-    arcade.start_render()
-    try:
-        yield
-    finally:
-        arcade.finish_render()
-    arcade.run()
+from sample import random_rect_within
 
 
 def render_module_collage(modules, num_columns=5, padding=2, margin=5):
@@ -155,8 +141,8 @@ def render_rect_sample():
 def render_rect_tree_sample():
     artist = RectSeriesArtist()
 
-    outer_rect = RectLRBT.blwh((0, 0), 1024, 768)
     with arcade_window(outer_rect.width + 10, outer_rect.height + 10):
+        outer_rect = RectLRBT.blwh((0, 0), 1024, 768)
         sections = (
             outer_rect
             .scale_centered_pct(90)
@@ -181,8 +167,50 @@ def render_rect_tree_sample():
             draw_rect(RectLRBT.aabb(rectlist), text=f"{i}")
 
 
+class RectTreeSample(arcade.View):
+
+    def setup(self):
+        outer_rect = RectLRBT.blwh((0, 0), 1024, 768)
+        self.sections = (
+            outer_rect
+            .scale_centered_pct(90)
+            .subdivisions(rows=3, columns=4)
+            .as_iter_rows_columns()
+        )
+        rect_tree_nodes = []
+        self.section_rects = []
+        for (i, section) in enumerate(self.sections):
+            rectlist = []
+            for n in range(random.randint(2, 7)):
+                rect = random_rect_within(section, 25, 25)
+                rectlist.append(rect)
+                rect_tree_nodes.append(((i, n), rect))
+
+            self.section_rects.append((i, section, rectlist))
+
+        self.rect_tree = build_rect_tree(rect_tree_nodes)
+
+    def on_show_view(self):
+        arcade.set_background_color(arcade.color.WHITE)
+        artist = RectSeriesArtist()
+        arcade.start_render()
+        for (i, section, rectlist) in self.section_rects:
+            draw_rect(section, color=arcade.color.ALICE_BLUE, text=f"${i}")
+            for rect in rectlist:
+                artist.draw(rect)
+            draw_rect(RectLRBT.aabb(rectlist), text=f"{i}")
+        arcade.finish_render()
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        print(self.rect_tree.ids_at((x, y)))
+
+
 # seed = 20
 # rng = random.Random(seed)
 # render_module_collage(random_modules(20, rng))
 # render_rect_sample()
-render_rect_tree_sample()
+window = arcade.Window(1024, 768, "Arcade")
+view = RectTreeSample()
+view.setup()
+window.show_view(view)
+arcade.run()
