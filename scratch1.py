@@ -288,19 +288,29 @@ class RectTreeSample(arcade.View):
         print(self.rect_tree.ids_at((x, y)))
 
 
+def annotated_pprint(stuff, description=None):
+    if description:
+        print(description)
+    pprint(stuff)
+    print("")
+    return stuff
+
+
 window = arcade.Window(1024, 768, "Arcade")
 view = ShipBuilder(ship_slots=6, num_modules=30, num_columns=9)
 # view = RectTreeSample()
 view.setup()
 window.show_view(view)
-print("children")
-pprint(view.rect_tree.children)
-print("subtree at [None, inventory]")
-pprint(view.rect_tree.subtree_at([None, "inventory"]))
-print("subtrees to [None, inventory]")
-pprint(view.rect_tree.subtrees_to([None, "inventory"]))
-print("children at [None, inventory]")
-pprint(view.rect_tree.children_at([None, "inventory"]))
-print("all leaves")
-pprint(view.rect_tree.leaves())
+
+annotated_pprint(view.rect_tree.children, "children")
+annotated_pprint(view.rect_tree.rect, "rect_tree root aabb")
+annotated_pprint(view.rect_tree.subtree_at([None, "inventory"]), "subtree at [None, inventory]")
+annotated_pprint(view.rect_tree.subtrees_to([None, "inventory"]), "subtrees to [None, inventory]")
+annotated_pprint(view.rect_tree.subtrees_to([None, "inventory", "dne", "nope"]), "subtrees to [None, inventory, dne, nope]")
+annotated_pprint(view.rect_tree.subtrees_closest_to([None, "inventory", "dne", "nope"]), "subtrees closest to [None, inventory, dne, nope]")
+
+view.rect_tree.insert_at([None, "new"], RectLRBT.blwh((2000, 2000), 10, 10))
+
+annotated_pprint(view.rect_tree.rect, "rect_tree updated root aabb")
+
 arcade.run()
