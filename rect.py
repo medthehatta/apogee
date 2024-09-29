@@ -539,6 +539,7 @@ class RectLRTB(Rect):
 
     @classmethod
     def aabb(cls, rects):
+        rects = list(rects)
         xmin = min(r.topleft.x for r in rects)
         xmax = max(r.topright.x for r in rects)
         ymin = min(r.topleft.y for r in rects)
@@ -566,6 +567,7 @@ class RectLRBT(Rect):
 
     @classmethod
     def aabb(cls, rects):
+        rects = list(rects)
         xmin = min(r.topleft.x for r in rects)
         xmax = max(r.topright.x for r in rects)
         ymin = min(r.bottomleft.y for r in rects)
