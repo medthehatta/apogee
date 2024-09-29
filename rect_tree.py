@@ -9,6 +9,11 @@ def flatten(lst):
 class RectTree:
 
     @classmethod
+    def from_leaf(cls, path, rect):
+        (pre, *rest) = path
+        return cls.from_leaves([(rest, rect)], pre=pre)
+
+    @classmethod
     def from_leaves(cls, leaves, pre=None):
         if len(leaves) == 0:
             raise ValueError(f"Need to provide leaves.  ({pre=})")
@@ -34,6 +39,21 @@ class RectTree:
         self.rect = rect
         self.children = children or []
         self.child_index = {c.identifier: c for c in self.children}
+
+    def rect_from_children_aabb(self):
+        self.rect = RectLRBT.aabb(c.rect for c in self.children)
+        return self.rect
+
+    def insert_child(self, new_child):
+        self.children.append(new_child)
+        self.child_index[new_child.identifier] = new_child
+        self.rect_from_children_aabb()
+        return self
+
+    def remove_child(self, child_id):
+        child = self.child_index.pop(child_id)
+        self.children.remove(child)
+        return child
 
     def children_at(self, path):
         if len(path) == 0:
@@ -73,6 +93,22 @@ class RectTree:
                     for c in self.children
                 ])
 
+    def subtrees_closest_to(self, path, prefix=None):
+        prefix = prefix or []
+
+        assert len(path) > 1
+        assert path[0] == self.identifier
+
+        matching_child = self.child_index.get(path[1])
+
+        if matching_child:
+            return (
+                prefix +
+                matching_child.subtrees_closest_to(path[1:], prefix=prefix + [self])
+            )
+        else:
+            return prefix + [self]
+
     def leaves(self, prefix=None):
         prefix = prefix or []
         path_to_me = list(prefix) + [self.identifier]
@@ -83,10 +119,14 @@ class RectTree:
         return flatten([c.leaves(prefix=path_to_me) for c in self.children])
 
     def insert_at(self, path, rect):
-        subtree = self.subtree_at(path)
-        all_leaves = subtree.leaves() + [(path, rect)]
-        new_subtree = self.from_leaves(all_leaves)
-        # TODO
+        subtrees = self.subtrees_closest_to(path)
+        remaining_path = path[len(subtrees):]
+        subtree = subtrees[-1]
+        child = type(self).from_leaf(remaining_path, rect)
+        subtree.insert_child(child)
+
+        for parent in reversed(subtrees[:-1]):
+            parent.rect_from_children_aabb()
 
     def ids_at(self, point):
         if not self.children:
