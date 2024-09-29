@@ -74,3 +74,7 @@ def svg_for_module(module):
             **attr_replacements
         },
     )
+
+
+def svg_for_module_slot():
+    return interpolate_svg_to_string("svgs/empty_module.svg")
