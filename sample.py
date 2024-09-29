@@ -31,7 +31,7 @@ def _dice():
 
     @Choice.delayed
     def _die_list(k, d, p):
-        return [k(p) if k is not RiftDie else k()]*d
+        return tuple([k(p) if k is not RiftDie else k()]*d)
 
     return _die_list(kind, num_dice, num_pips)
 
@@ -80,11 +80,18 @@ def random_module(rng=None):
     def _die_value(dice):
         match dice:
             case [RiftDie(), *rest]:
-                return 5
+                return 5*len(dice)
             case [NormalDie(x), *rest]:
-                return x
+                return x*len(dice)
             case _:
                 return 0
+
+    # Can't provide power with modules that provide attack
+    if (
+        params.get("power") and
+        (params.get("missile_dice") or params.get("cannon_dice"))
+    ):
+        del params["power"]
 
     value_estimate = (
         sum(v for (k, v) in params.items() if isinstance(v, int))
@@ -92,7 +99,11 @@ def random_module(rng=None):
         + _die_value(params.get("cannon_dice"))
     )
 
-    params["power_cost"] = int(value_estimate // 1.5)
+    if params.get("power", 0) == 0:
+        params["power_cost"] = int(value_estimate // 1.5)
+    else:
+        params["power_cost"] = 0
+
     return Module(**params)
 
 
