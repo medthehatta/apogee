@@ -9,6 +9,7 @@ import string
 import pyglet
 import webcolors
 
+from pyglet_utils import pil_to_sprite_at_rect
 from rect import RectLRBT
 from rect_tree import RectTree
 from scratch import module_to_pil
@@ -52,23 +53,9 @@ class ModuleCollage(pyglet.window.Window):
         )
 
     def pil_to_sprite_at_rect(self, pil, rect):
-        pil_file = BytesIO()
-        pil.save(pil_file, "png")
-        sprite = pyglet.sprite.Sprite(
-            pyglet.image.load(
-                "hint.png",
-                file=pil_file,
-                decoder=pyglet.image.codecs.pil.PILImageDecoder(),
-            ),
-            batch=self.batch,
+        self.entities.append(
+            sprite := pil_to_sprite_at_rect(pil, rect, batch=self.batch)
         )
-        sprite.update(
-            x=rect.bottomleft.x,
-            y=rect.bottomleft.y,
-            scale_x=rect.width/sprite.width,
-            scale_y=rect.height/sprite.height,
-        )
-        self.entities.append(sprite)
         return sprite
 
     def on_draw(self):
