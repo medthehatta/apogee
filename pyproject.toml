@@ -5,10 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "arcade==2.6.17",
     "choice",
     "formal-vector",
+    "pyglet>=2.0.17",
     "svgcomposer",
+    "webcolors>=24.8.0",
 ]
 
 [tool.setuptools]
