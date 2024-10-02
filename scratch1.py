@@ -19,10 +19,9 @@ from sample import random_rect_within
 
 class ModuleCollage(pyglet.window.Window):
 
-    def __init__(self, num_modules, num_columns=5, padding=2, margin=5):
+    def __init__(self, num_modules, padding=2, margin=5):
         super().__init__()
         self.num_modules = num_modules
-        self.num_columns = num_columns
         self.padding = padding
         self.margin = margin
         self.rng = None
@@ -58,15 +57,11 @@ class ModuleCollage(pyglet.window.Window):
         )
         return sprite
 
-    def on_draw(self):
-        self.clear()
-        self.batch.draw()
-
     def draw_view(self):
         margin = self.margin
         padding = self.padding
-        num_columns = self.num_columns
         modules = self.modules
+        window_width = self.width
 
         rect_tree_nodes = []
 
@@ -78,7 +73,9 @@ class ModuleCollage(pyglet.window.Window):
             .displace((margin, margin))
         )
 
-        num_rows = len(pils) // num_columns
+        num_columns = int(window_width / (pil_width + padding))
+        num_rows = len(pils) // num_columns + 1
+        print(f"{num_columns=} {num_rows=}")
         rows_then_columns = basis_rect.tiled(
             rows=num_rows,
             columns=num_columns,
@@ -92,6 +89,10 @@ class ModuleCollage(pyglet.window.Window):
             rect_tree_nodes.append(([id(mod)], scaled_rect))
 
         self.rect_tree = RectTree.from_leaves(rect_tree_nodes)
+
+    def on_draw(self):
+        self.clear()
+        self.batch.draw()
 
     def on_mouse_press(self, x, y, button, modifiers):
         at_pos = self.rect_tree.ids_at((x, y))
@@ -126,7 +127,7 @@ class RectTreeSample(pyglet.window.Window):
         self.draw_view()
 
     def setup(self):
-        outer_rect = RectLRBT.blwh((0, 0), 1024, 768)
+        outer_rect = RectLRBT.blwh((0, 0), self.width, self.height)
         self.sections = (
             outer_rect
             .scale_centered_pct(90)
@@ -217,6 +218,6 @@ def annotated_pprint(stuff, description=None):
 
 
 if __name__ == "__main__":
-    view = ModuleCollage(20)
+    view = ModuleCollage(47)
 
     pyglet.app.run()
