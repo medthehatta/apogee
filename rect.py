@@ -31,6 +31,62 @@ class Point(FormalVector):
         return f"{self.__class__.__name__}.new({self['x']}, {self['y']})"
 
 
+class Size(FormalVector):
+    _ZERO = "Size.new(0, 0)"
+
+    @classmethod
+    def new(cls, w, h):
+        return w*cls.named("w") + h*cls.named("h")
+
+    @property
+    def w(self):
+        return self["w"]
+
+    @property
+    def h(self):
+        return self["h"]
+
+    def as_tuple(self):
+        return (self["w"], self["h"])
+
+    def integral(self):
+        return self.from_triples([
+            (name, int(value), basis)
+            for (name, value, basis) in self.triples()
+        ])
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}.new({self['w']}, {self['h']})"
+
+
+class RectCoord(FormalVector):
+    _ZERO = "RectCoord.new(0, 0)"
+
+    @classmethod
+    def new(cls, u, v):
+        return u*cls.named("u") + v*cls.named("v")
+
+    @property
+    def u(self):
+        return self["u"]
+
+    @property
+    def v(self):
+        return self["v"]
+
+    def as_tuple(self):
+        return (self["u"], self["v"])
+
+    def integral(self):
+        return self.from_triples([
+            (name, int(value), basis)
+            for (name, value, basis) in self.triples()
+        ])
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}.new({self['u']}, {self['v']})"
+
+
 e_lr = Point.named("x")
 e_tb = Point.named("y")
 e_rl = -e_lr
@@ -153,11 +209,11 @@ class RectTiled:
             self.cell(r, column) for r in range(self.rows)
         ]
 
-    def as_iter_rows_columns(self):
+    def as_iter_columns_rows(self):
         self.check_finite()
         return chain.from_iterable(self.column(c) for c in range(self.columns))
 
-    def as_iter_columns_rows(self):
+    def as_iter_rows_columns(self):
         self.check_finite()
         return chain.from_iterable(self.row(r) for r in range(self.rows))
 
@@ -573,3 +629,232 @@ class RectLRBT(Rect):
         ymin = min(r.bottomleft.y for r in rects)
         ymax = max(r.topleft.y for r in rects)
         return cls.lrtb(xmin, xmax, ymax, ymin)
+
+
+class Frame:
+
+    def __init__(self, right, up):
+        self._right = right
+        self._up = up
+        self._right_norm = None
+        self._up_norm = None
+        self._anchors = None
+
+    @property
+    def zero(self):
+        return self._right.zero()
+
+    @property
+    def right(self):
+        if self._right_norm is None:
+            self._right_norm = self._right.normalized()
+        return self._right_norm
+
+    @property
+    def left(self):
+        return -self.right
+
+    @property
+    def up(self):
+        if self._up_norm is None:
+            self._up_norm = self._up.normalized()
+        return self._up_norm
+
+    @property
+    def down(self):
+        return -self.up
+
+    @property
+    def anchors(self):
+        if self._anchors is None:
+            self._anchors = Anchors(self)
+        return self._anchors
+
+
+class AnchorPoint:
+
+    def __init__(self, name, frame, from_bottom_left):
+        self.name = name
+        self.frame = frame
+        self.from_bottom_left = from_bottom_left
+        self.to_bottom_left = -from_bottom_left
+
+
+class Anchors:
+
+    def __init__(self, frame):
+        self.frame = frame
+        self._by_name = {
+            "top_left": self.top_left,
+            "top_right": self.top_right,
+            "bottom_left": self.bottom_left,
+            "bottom_right": self.bottom_right,
+            "center": self.center,
+        }
+
+    def __getitem__(self, key):
+        return self.from_name(key)
+
+    def from_name(self, anchor_name):
+        return self._by_name[anchor_name]
+
+    @property
+    def top_left(self):
+        return AnchorPoint(
+            "top_left",
+            frame=self.frame,
+            from_bottom_left=self.frame.up,
+        )
+
+    @property
+    def top_right(self):
+        return AnchorPoint(
+            "top_right",
+            frame=self.frame,
+            from_bottom_left=self.frame.up + self.frame.right,
+        )
+
+    @property
+    def bottom_left(self):
+        return AnchorPoint(
+            "bottom_left",
+            frame=self.frame,
+            from_bottom_left=self.frame.zero,
+        )
+
+    @property
+    def bottom_right(self):
+        return AnchorPoint(
+            "bottom_right",
+            frame=self.frame,
+            from_bottom_left=self.frame.right,
+        )
+
+    @property
+    def center(self):
+        return AnchorPoint(
+            "center",
+            frame=self.frame,
+            from_bottomleft=0.5*self.top_right,
+        )
+
+
+class AnchorRect:
+
+    @classmethod
+    def from_anchor_point_size(cls, anchor, point, size):
+        bottomleft = point + Point.componentwise(
+            lambda x, y: x*y,
+            anchor.to_bottomleft,
+            size,
+        )
+        return cls(anchor.frame, bottomleft, size)
+
+    @classmethod
+    def from_bottomleft_topright(cls, bottom_left, top_right):
+        diagonal = top_right - bottom_left
+        frame = Frame(
+            right=diagonal.project("x"),
+            up=diagonal.project("y"),
+        )
+        size = Size.new(
+            w=abs(diagonal.x),
+            h=abs(diagonal.y),
+        )
+        return cls.from_anchor_point_size(
+            frame.anchors.bottom_left,
+            bottom_left,
+            size,
+        )
+
+    @classmethod
+    def from_left_right_top_bottom(cls, left, right, top, bottom):
+        return cls.from_bottomleft_topright(
+            Point.new(left, bottom),
+            Point.new(right, top),
+        )
+
+    def __init__(self, frame, bottomleft, size):
+        self.frame = frame
+        self._bottomleft = bottomleft
+        self.size = size
+
+    @property
+    def anchors(self):
+        return self.frame.anchors
+
+    @property
+    def width(self):
+        return self.size.w
+
+    @property
+    def height(self):
+        return self.size.h
+
+    def _uv(self, uv):
+        return (
+            uv.u * self.width * self.frame.right +
+            uv.v * self.height * self.frame.up
+        )
+
+    def at(self, anchor):
+        assert self.frame == anchor.frame
+        return self._bottomleft + self._uv(anchor.from_bottomleft)
+
+    def left_right_top_bottom(self):
+        return (
+            self.at(self.anchors.top_left).x,
+            self.at(self.anchors.top_right).x,
+            self.at(self.anchors.top_left).y,
+            self.at(self.anchors.bottom_right).y,
+        )
+
+    # Convenience methods
+
+    def __getitem__(self, anchor_name):
+        return self.at(self.anchors[anchor_name])
+
+    @property
+    def w(self):
+        return self.width
+
+    @property
+    def h(self):
+        return self.height
+
+
+class AnchorRectTransforms:
+
+    @classmethod
+    def scale_around_anchor(cls, anchor, percent):
+
+        def _(rect):
+            return AnchorRect.from_anchor_point_size(
+                anchor,
+                rect.at(anchor),
+                rect.size * percent//100,
+            )
+
+        return _
+
+    @classmethod
+    def subdivisions(cls, rows, columns):
+
+        def _(rect):
+            return RectSubdivisions(rect, rows, columns)
+
+        return _
+
+    @classmethod
+    def tiled(cls, rows=None, columns=None, xpad=0, ypad=0):
+
+        def _(rect):
+            return RectTiled(
+                rect,
+                rows=rows,
+                columns=columns,
+                xpad=xpad,
+                ypad=ypad,
+            )
+
+        return _
